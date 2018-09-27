@@ -76,22 +76,10 @@ def register():
             'email': request.form['email'],
             'password_hash': pw_hash,
         }
-        mysql.query_db(query, data)
+        session['user_id'] = mysql.query_db(query, data)
+        session['first_name']=request.form['first_name']
 
         # debugHelp('REGISTERED METHOD')
-        session.clear()
-        mysql = connectToMySQL('retake_python_quotesdb')
-        query = "SELECT id, first_name FROM users WHERE email = %(email)s;"
-        data = { 
-            'email' : request.form['email'],
-            }
-        result = mysql.query_db(query, data)
-        session['user_id'] = result[0]['id']
-        session['first_name']=request.form['first_name']
-        session['logged_in'] = True
-        
-
-      
         return redirect('/quotes')
         #  return redirect('/wishes')
 
@@ -113,7 +101,6 @@ def login():
             # if we get True after checking the password, we may put the user id in session
             session['user_id'] = result[0]['id']
             session['first_name'] = result[0]['first_name']
-            session['logged_in'] = True
             # never render on a post, always redirect!
             # print("+++++++++++++++++++++++++++")
             # print(session['level_id'])
@@ -128,13 +115,21 @@ def login():
 @app.route('/quotes')
 def quotes():
     
-    if session.get('logged_in') is None:
+    if session.get('user_id') is None:
         flash("You must logged in to enter this website", "logout")
         return redirect('/')
     else:
         
         mysql = connectToMySQL('retake_python_quotesdb')
-        query = "SELECT quotes.id AS quote_id, quotes.user_id , users.first_name, users.last_name, quotes.message , quotes.author, quotes.created_at, count(likes.quote_id) AS count FROM quotes LEFT JOIN likes ON likes.quote_id = quotes.id JOIN users ON users.id = quotes.user_id GROUP by quotes.id ORDER BY  quotes.created_at DESC;"
+        query = """
+            SELECT 
+                quotes.id AS quote_id, quotes.user_id , users.first_name, users.last_name, 
+                quotes.message , quotes.author, quotes.created_at, count(likes.quote_id) AS count 
+            FROM quotes 
+            LEFT JOIN likes ON likes.quote_id = quotes.id 
+            JOIN users ON users.id = quotes.user_id GROUP by quotes.id 
+            ORDER BY  quotes.created_at DESC;
+        """
         # data = {
         #     'user_id': session['user_id']
         # }
@@ -224,7 +219,7 @@ def remove_quote(id):
 
 @app.route('/myaccount/<id>')
 def myaccount_id(id):
-    if session.get('logged_in') is None:
+    if session.get('user_id') is None:
         flash("You must logged in to enter this website", "logout")
         return redirect('/')
     else:
@@ -314,7 +309,7 @@ def edit():
 
 @app.route('/user/<id>')
 def user_id(id):
-    if session.get('logged_in') is None:
+    if session.get('user_id') is None:
         flash("You must logged in to enter this website", "logout")
         return redirect('/')
     else:
